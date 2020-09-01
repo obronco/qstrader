@@ -88,11 +88,24 @@ class CSVDailyBarDataSource(object):
         `pd.DataFrame`
             DataFrame of the CSV file with timestamps localised to UTC.
         """
-        csv_df = pd.read_csv(
-            os.path.join(self.csv_dir, csv_file),
-            index_col='Date',
-            parse_dates=True
-        ).sort_index()
+        if os.path.exists(os.path.join(self.csv_dir, csv_file)):
+            csv_df = pd.read_csv(
+                os.path.join(self.csv_dir, csv_file),
+                index_col='Date',
+                parse_dates=True
+            ).sort_index()
+        else:
+            # try Yahoo Finance
+            ticker = csv_file.replace('.csv', '')
+            ed_dt = int(mktime(gmtime()))
+            st_dt = ed_dt - 20 * 365 * 24 * 60 * 60
+            _URL = 'https://query1.finance.yahoo.com/v7/finance/download/{}?period1={}&period2={}&interval=1d&events=history'
+            csv_df = pd.read_csv(
+                _URL.format(ticker, st_dt, ed_dt),
+                index_col='Date',
+                parse_dates=True
+            ).sort_index()
+            csv_df.to_csv(os.path.join(self.csv_dir, csv_file), index=True, sep=',', decimal='.')
 
         # Ensure all timestamps are set to UTC for consistency
         csv_df = csv_df.set_index(csv_df.index.tz_localize(pytz.UTC))
